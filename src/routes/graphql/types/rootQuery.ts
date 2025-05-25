@@ -1,11 +1,11 @@
-import { GraphQLList, GraphQLString, GraphQLObjectType } from 'graphql';
+import { GraphQLList, GraphQLString, GraphQLObjectType, GraphQLSchema } from 'graphql';
 import { MemberType, MemberTypeId } from './memberType.js';
 import { User } from './userType.js';
 import { Post } from './postType.js';
 import { Profile } from './profileType.js';
 import { UUIDType } from './uuid.js';
 
-export const RootQuery = new GraphQLObjectType({
+const RootQuery = new GraphQLObjectType({
   name: 'RootQueryType',
   fields: {
     memberTypes: {
@@ -54,4 +54,8 @@ export const RootQuery = new GraphQLObjectType({
       resolve: (_, { id }, { prisma }) => prisma.profile.findUnique({ where: { id } }),
     },
   },
+});
+
+export const schema = new GraphQLSchema({
+  query: RootQuery,
 });
