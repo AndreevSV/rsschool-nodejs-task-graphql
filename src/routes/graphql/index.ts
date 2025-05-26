@@ -3,6 +3,7 @@ import { createGqlResponseSchema, gqlResponseSchema } from './schemas.js';
 import { schema } from './types/schema.js';
 import { graphql, getIntrospectionQuery, validate, parse } from 'graphql';
 import depthLimit from 'graphql-depth-limit';
+import { createLoaders } from './loaders.js';
 
 const MAX_DEPTH_GRAPHQL_QUERY = 5;
 
@@ -33,6 +34,9 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
           data: null,
         };
       }
+
+      const loaders = createLoaders(prisma);
+
       if (query === getIntrospectionQuery()) {
         return graphql({
           schema,
@@ -45,7 +49,7 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
         schema,
         source: query,
         variableValues: variables,
-        contextValue: { prisma },
+        contextValue: { prisma, loaders },
       });
     },
   });

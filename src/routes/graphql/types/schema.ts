@@ -44,35 +44,80 @@ const RootQueryType = new GraphQLObjectType({
     // Users query
     users: {
       type: new GraphQLNonNull(new GraphQLList(new GraphQLNonNull(User))),
-      resolve: async (_, __, { prisma }) =>
-        await prisma.user.findMany({
-          include: {
-            userSubscribedTo: true,
-            subscribedToUser: true,
-          },
-        }),
+      resolve: async (_, __, { prisma, loaders }, info) => {
+        const includeUserSubscribedTo = loaders?.fieldRequested(info, 'userSubscribedTo');
+        const includeSubscribedToUser = loaders?.fieldRequested(info, 'subscribedToUser');
+
+        if (includeUserSubscribedTo && includeSubscribedToUser) {
+          return prisma.user.findMany({
+            include: {
+              subscribedToUser: true,
+              userSubscribedTo: true,
+            },
+          });
+        } else if (includeUserSubscribedTo) {
+          return prisma.user.findMany({
+            include: {
+              userSubscribedTo: true,
+            },
+          });
+        }
+
+        const include: any = {};
+
+        if (includeUserSubscribedTo) {
+          include.userSubscribedTo = { include: { author: true } };
+        }
+
+        if (includeSubscribedToUser) {
+          include.subscribedToUser = { include: { subscriber: true } };
+        }
+
+        const users = await prisma.user.findMany({
+          ...(Object.keys(include).length > 0 && { include }),
+        });
+
+        if (loaders) {
+          loaders.primeLoaders(users);
+        }
+        return users;
+      },
     },
 
     // User query
     user: {
       type: User,
       args: { id: { type: new GraphQLNonNull(UUIDType) } },
-      resolve: async (_, { id }, { prisma }) => {
+      resolve: async (_, { id }, { prisma, loaders }, info) => {
+        if (loaders) {
+          try {
+            const cachedUser = await loaders.userLoader.load(id);
+            if (cachedUser) {
+              return cachedUser;
+            }
+          } catch (error) {}
+        }
+
+        const includeUserSubscribedTo = loaders?.fieldRequested(info, 'userSubscribedTo');
+        const includeSubscribedToUser = loaders?.fieldRequested(info, 'subscribedToUser');
+
+        const include: any = {};
+
+        if (includeUserSubscribedTo) {
+          include.userSubscribedTo = { include: { author: true } };
+        }
+        if (includeSubscribedToUser) {
+          include.subscribedToUser = { include: { subscriber: true } };
+        }
+
         const user = await prisma.user.findUnique({
           where: { id },
-          include: {
-            userSubscribedTo: {
-              include: {
-                author: true,
-              },
-            },
-            subscribedToUser: {
-              include: {
-                subscriber: true,
-              },
-            },
-          },
+          ...(Object.keys(include).length > 0 && { include }),
         });
+
+        if (loaders && user) {
+          loaders.primeLoaders([user]);
+        }
         return user;
       },
     },

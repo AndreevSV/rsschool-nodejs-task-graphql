@@ -17,7 +17,13 @@ export const User = new GraphQLObjectType({
     balance: { type: new GraphQLNonNull(GraphQLFloat) },
     profile: {
       type: Profile,
-      resolve: async (parent, _, { prisma }) => {
+      resolve: async (parent, _, { loaders, prisma }, info) => {
+        if (parent.profile) {
+          return parent.profile;
+        }
+        if (loaders) {
+          return await loaders.profileByUserIdLoader.load(parent.id);
+        }
         return await prisma.profile.findUnique({
           where: { userId: parent.id },
           include: { memberType: true },
@@ -26,7 +32,14 @@ export const User = new GraphQLObjectType({
     },
     posts: {
       type: new GraphQLNonNull(new GraphQLList(new GraphQLNonNull(Post))),
-      resolve: async (parent, _, { prisma }) => {
+      resolve: async (parent, _, { loaders, prisma }, info) => {
+        if (parent.posts) {
+          return parent.posts;
+        }
+
+        if (loaders) {
+          return await loaders.postsByAuthorIdLoader.load(parent.id);
+        }
         return await prisma.post.findMany({
           where: { authorId: parent.id },
         });
@@ -34,7 +47,14 @@ export const User = new GraphQLObjectType({
     },
     userSubscribedTo: {
       type: new GraphQLNonNull(new GraphQLList(new GraphQLNonNull(User))),
-      resolve: async (parent, _, { prisma }) => {
+      resolve: async (parent, _, { loaders, prisma }, info) => {
+        if (parent.userSubscribedTo) {
+          return parent.userSubscribedTo;
+        }
+        if (loaders) {
+          return await loaders.userSubscribedToLoader.load(parent.id);
+        }
+
         const subscriptions = await prisma.subscribersOnAuthors.findMany({
           where: { subscriberId: parent.id },
           include: { author: true },
@@ -44,7 +64,14 @@ export const User = new GraphQLObjectType({
     },
     subscribedToUser: {
       type: new GraphQLNonNull(new GraphQLList(new GraphQLNonNull(User))),
-      resolve: async (parent, _, { prisma }) => {
+      resolve: async (parent, _, { loaders, prisma }, info) => {
+        if (parent.subscribedToUser) {
+          return parent.subscribedToUser;
+        }
+        if (loaders) {
+          return await loaders.subscribedToUserLoader.load(parent.id);
+        }
+
         const subscribers = await prisma.subscribersOnAuthors.findMany({
           where: { authorId: parent.id },
           include: { subscriber: true },
